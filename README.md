@@ -1,6 +1,8 @@
-# Magic Mirror 2 - JEEDOM Module
+# Magic Mirror 2 - JEEDOM Module v2
 
-This module displays any JEEDOM command value. The information will be updated depending on the polling time.
+This module displays any JEEDOM command value. If you have a touchscreen, you will be able to trigger some command too.
+
+The information will be updated depending on the polling time.
 
 If a PIR-sensor using MMM-PIR-Sensor module is used, this information will not be updated during screen off. 
 
@@ -72,107 +74,12 @@ modules: [
 		},
 ]
 ````
-Example how to use 2 infos on the same line : 
-(2nd example of the screenshot)
-````
-	sensors: [
-				{//first info (value and unit only)
-					idx: "1987", 
-					sameLine1: true,
-					unit : "°C",
-      				},	
-				{//second info (title, symbol, value and unit)
-					idx: "1988", 
-					customTitle: "Météo",
-					symbol: "fa fa-sun-o",
-					sameLine2: true,
-					unit : "%",
-      				},
-      				{ //this one display only 1 info on its line
-					idx: "1996", 
-					symbol: "fa fa-cloud",
-					customTitle: "Condition :",
-      				},
-				{
-					idx: "1495", 
-					//customTitle: "Grenier",
-					sameLine1: true,
-					unit : "°C",
-      				},	
-				{
-					idx: "1496", 
-					customTitle: "Grenier",
-					symbol: "fa fa-thermometer-half",
-					sameLine2: true,
-					unit : "%",
-      				},
-
-				{
-					idx: "1499", 
-					//customTitle: "Cuisine",
-					sameLine1: true,
-					unit : "°C",
-      				},
-				{
-					idx: "1500", 
-					symbol: "fa fa-thermometer-half",
-					customTitle: "Cuisine",
-					sameLine2: true,
-					unit : "%",
-      				},
-			]
-````
-Or (3rd example of the screenshot) :
-````
-[
-
-				{//first line : display the status of the heater occording to a boolean value
-					idx: "228", 
-					symbolon: "fa fa-fire vert", //colors has to be defined on custom.css file
-					symboloff: "fa fa-power-off rouge",
-					boolean : true,
-					customTitle: "Cuisine",
-
-      				},
-				{// second line : display both thermostat mode
-					//thermostat
-					idx: "980", 
-					sameLine1: true,
-      				},
-      				{// and the thermostat target value
-					//valeur de consigne
-					idx: "966", 
-					sameLine2: true,
-					unit : "°C",
-      				},
-				{
-					idx: "544", 
-					symbolon: "fa fa-fire vert",
-					symboloff: "fa fa-power-off rouge",
-					boolean : true,
-					customTitle: "Salle Meca",
-
-      				},
-				{
-					//thermostat
-					idx: "1262", 
-					sameLine1: true,
-      				},
-      				{
-					//valeur de consigne
-					idx: "1248", 
-					sameLine2: true,
-					unit : "°C",
-      				},
-		]
-		
-````
 * HTTPS and HTTP is supported
 * you can define all the sensors you want
 * you can add several time the module in your Magic Mirror config and define a different updateInterval
 * symbol is based on [Fontawesome](http://fontawesome.io/icons/)
 * if you define the sensor as a "boolean:true" then you can :
-	- add symbolon and symboloff depending on the sensor value (0 or 1)
+	- add symbolOn and symbolOff depending on the sensor value (0 or 1)
 	- add customTitleOn and customTitleOff depending on the sensor value (0 or 1)
 
 ## Configuration Options
