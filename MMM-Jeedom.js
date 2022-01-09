@@ -43,19 +43,18 @@ Module.register("MMM-Jeedom",{
 		this.updateJeedomInterval();
 	},
 
-	// notificationReceived: function(notification, payload, sender) {
-	// 	console.log("Fct notif notif !!! " + notification);
-	// 	if (notification === "USER_PRESENCE") { // notification envoyée par le module MMM-PIR-Sensor. Voir sa doc
-	// 		console.log("Fct notificationReceived USER_PRESENCE - payload = " + payload);
-	// 		isUserPresent = payload;
-	// 		this.updateJeedomInterval();
-	// 	}
-	// },
+	notificationReceived: function(notification, payload, sender) {
+		console.log(`notificationReceived >> ${notification}`);
+		if (notification === "USER_PRESENCE") { // notification envoyée par le module MMM-PIR-Sensor. Voir sa doc
+			this.isUserPresent = payload;
+			this.updateJeedomInterval();
+		}
+	},
 
 	updateJeedomInterval: function() {
 		console.log(`updateJeedomInterval >> ${this.isUserPresent} > ${this.isModuleHidden}`);
-		if (isUserPresent === true && this.isModuleHidden === false) { // on s'assure d'avoir un utilisateur présent devant l'écran (sensor PIR) et que le module soit bien affiché
-			console.log(`updateJeedomInterval > ${this.name} est revenu. updateJeedom !`);
+		if (isUserPresent === true && this.isModuleHidden === false) {
+			console.log(`updateJeedomInterval >> ${this.name} est revenu. updateJeedom !`);
 
 			// update tout de suite
 			this.updateJeedom();
@@ -64,9 +63,9 @@ Module.register("MMM-Jeedom",{
 				this.IntervalID = setInterval(function() { self.updateJeedom(); }, this.config.updateInterval);
 			}
 		}else{ //sinon (isUserPresent = false OU ModuleHidden = true)
-			console.log(`updateJeedomInterval > Personne regarde, on stop l'update ${this.IntervalID}`);
-			clearInterval(this.IntervalID); // on arrete l'intervalle d'update en cours
-			this.IntervalID=0; //on reset la variable
+			console.log(`updateJeedomInterval >> Personne regarde, on stop l'update ${this.IntervalID}`);
+			clearInterval(this.IntervalID);
+			this.IntervalID = 0;
 		}
 	},
 
@@ -94,22 +93,34 @@ Module.register("MMM-Jeedom",{
 			//puis on s'occupe du titre
 			let sensorTitle = sensor.customTitle;
 			if (sensor.boolean && sensor.customTitleOn && sensor.customTitleOff) {
-				sensorTitle = sensor.status === 1 ? sensor.customTitleOn : sensor.customTitleOff;
+				sensorTitle = sensor.status == 1 ? sensor.customTitleOn : sensor.customTitleOff;
 			}
 
-			let sensorStatus = sensor.status;
-			if (sensor.boolean && sensor.statusOn && sensor.statusOff) {
-				sensorStatus = sensor.status === 1 ? sensor.statusOn : sensor.statusOff;
+			let sensorStatus = '';
+			if (sensor.boolean) {
+				if (sensor.statusOn && sensor.statusOff) {
+					sensorStatus = sensor.status == 1 ? sensor.statusOn : sensor.statusOff;
+					if (sensor.unit) {
+						sensorStatus += ` ${sensor.unit}`;
+					}
+				}
+			} else {
+				sensorStatus = sensor.status;
+				if (sensor.unit) {
+					sensorStatus += ` ${sensor.unit}`;
+				}
 			}
-			if (sensor.unit) {
-				sensorStatus += ` ${sensor.unit}`;
+
+			let sensorAction = '';
+			if (sensor.boolean && sensor.cmdIconOn && sensor.cmdIconOff) {
+				sensorAction = sensor.status == 1 ? `<i class="${sensor.cmdIconOn}" data-cmd="${sensor.cmdActionOn}"></i>` : `<i class="${sensor.cmdIconOff}" data-cmd="${sensor.cmdActionOff}"></i>`;
 			}
 
 			htmlRows.push(`
 				<tr class="normal">
 					<td class="symbol align-left"><i class="${sensorSymbol}"></i></td>
 					<td class="title bright align-left">${sensorTitle}</td>
-					<td class="time light align-right">${sensorStatus}</td>
+					<td class="time light align-right">${sensorStatus} ${sensorAction}</td>
 				</tr>
 			`);
 		}
@@ -124,7 +135,16 @@ Module.register("MMM-Jeedom",{
 		}
 
 		wrapper.innerHTML = `<table class="small">${htmlRows.join('')}</table>${lastDate}`;
+		wrapper.addEventListener("click", this.onClick.bind(this));
 		return wrapper;
+	},
+
+	onClick: function(event) {
+		event.stopPropagation();
+		const dataCmdActionId = event.target.getAttribute('data-cmd');
+		if (dataCmdActionId) {
+			this.askJeedomStatuses([dataCmdActionId], (x) => console.log(x))
+		}
 	},
 
 	updateJeedom: function() {
@@ -150,6 +170,7 @@ Module.register("MMM-Jeedom",{
 
 	doGet: function(url, callback) {
 		const req = new XMLHttpRequest();
+		console.log(`doGet >> ${url}`)
 		req.open("GET", url, true);
 		req.timeout = 500;
 		req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
