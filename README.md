@@ -9,11 +9,13 @@ If a PIR-sensor using MMM-PIR-Sensor module is used, this information will not b
 The infos will also not be updated when no instances of the MMM-Jeedom module are displayed on the screen (for example hidden by using MMM-Remote-Control or any carousel like MMM-Pages). This will allow to reduce the number of request to Jeedom API. 
 As soon as one MMM-Jeedom module will be again displayed on the screen, all the instances will request an update of the datas. 
 
-![alt text](https://raw.githubusercontent.com/prysme01/MMM-Jeedom/master/screenshots/MMM-Jeedom.png "Image of MMM-Jeedom")
+![alt text](https://github.com/nelsou/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom_1.png "Image of MMM-Jeedom v2")
 
-![alt text](https://github.com/AgP42/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom_1.png "Image of MMM-Jeedom_1")
+![alt text](https://github.com/nelsou/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom.png "Image of MMM-Jeedom")
 
-![alt text](https://github.com/AgP42/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom_2.png "Image of MMM-Jeedom_2")
+![alt text](https://github.com/nelsou/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom_1.png "Image of MMM-Jeedom_1")
+
+![alt text](https://github.com/nelsou/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom_2.png "Image of MMM-Jeedom_2")
 
 ## Module installation
 
@@ -28,50 +30,73 @@ and add the configuration section in your Magic Mirror config file :
 (1st example of the screenshot) :
 ````javascript
 modules: [
-		{
-			module: 'MMM-Jeedom',
-			header: 'Jeedom Maison',
-			position: "top_left",
-			config: {
-				updateInterval: 3000,
-			      	jeedomAPIKey: "", 
-				jeedomURL: "192.168.0.1 or hostname",
-				jeedomPORT: 443,
-				jeedomHTTPS: true,
-				jeedomAPIPath: "/core/api/jeeApi.php",
-				sensors: [
-				{
-					idx: "127", 
-					symbol: "fa fa-bolt",
-					customTitle: "Consommation Maison",
-					unit : "Watt",
-      				},
-				{
-					idx: "695",
-					symbol: "fa fa-thermometer-full",
-					customTitle: "Temperature Rez de Chaussee",
-					unit : "C°",
-				},
-				{
-					idx: "773",
-					symbolon: "fa fa-user",
-					symboloff: "fa fa-user-o",
-					customTitle: "Adrien",
-					boolean : true,
-				},
-				{
-					idx: "6031",
-					symbol: "fa fa-music",
-					customTitle: "Musique",
-					hideempty:false,
+{
+  module: 'MMM-Jeedom',
+  header: 'Jeedom Maison',
+  position: "top_left",
+  config: {
+    updateInterval: 3000,
+    jeedomAPIKey: "", 
+    jeedomURL: "192.168.0.1 or hostname",
+    jeedomPORT: 443,
+    jeedomHTTPS: true,
+    jeedomAPIPath: "/core/api/jeeApi.php",
+    sensors: [
+      {
+        idx: 2463,
+        title: "Consommation Maison",
+        icon: "fa fa-bolt",
+        status: {
+          display: true,
+          unit: "Watt",
+        }
+      },
+      {
+        idx: 2463,
+        title: "Temperature Rez de Chaussee",
+        icon: "fas fa-thermometer-full",
+        status: {
+          display: true,
+          unit: "°C",
+        }
+      },
+      {
+        idx: 1859,
+        iconOn: "fa fa-temperature-low",
+        iconOff: "fa fa-temperature-high",
+        titleOn: "Radiateur éteint",
+        titleOff: "Radiateur allumé",
+        value: {
+          display: true,
+          idx: 2463,
+          unit: "°C",
+        },
+        action: {
+          iconOn: 'fas fa-toggle-on',
+          iconOff: 'fas fa-toggle-off',
+          cmdIdOn: 1861,
+          cmdIdOff: 1862,
+        }
+      },
+      {
+        idx: 1058,
+        title: "Lumière",
+        iconOn: "fas fa-lightbulb",
+        iconOff: "far fa-lightbulb",
 
-				},
-			],
-			Virtual_API: "", // Code APi de vos virtuals
-			TempID: "5089", // ID pour l'info température
-			HumID: "5088", // ID pour l'info d'humidité
-			}
-		},
+        action: {
+          iconOn: 'fas fa-power-off',
+          iconOff: 'fas fa-power-off',
+          cmdIdOn: 1059,
+          cmdIdOff: 1061,
+        },
+      }
+    ],
+    Virtual_API: "", // Code APi de vos virtuals
+    TempID: "5089", // ID pour l'info température
+    HumID: "5088", // ID pour l'info d'humidité
+  }
+},
 ]
 ````
 * HTTPS and HTTP is supported

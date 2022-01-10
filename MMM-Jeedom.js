@@ -1,31 +1,20 @@
 'use strict';
 
-//pour gerer le PIR et le module.hidden en meme temps
-const isUserPresent = true; // par défaut on est présent (pas de sensor PIR pour couper)
+const isUserPresent = true;
 
-Module.register("MMM-Jeedom",{
-	// Default module config.
-	defaults: {
-		jeedomHTTPS: true,
-		updateInterval: 10000, // 10s
-		animationSpeed: 1000,
-		displayLastUpdate: true,
-		displayLastUpdateFormat: 'dddd - HH:mm:ss',
-		sensors: [],
-	},
-
+Module.register("MMM-Jeedom", {
 	start: function() {
-		Log.log('LOG' + this.name + ' is started!');
+		this.debug('start', 'Module is started');
+		this.isDebug = true;
 
 		moment.locale(config.language);
 		this.title = "Loading...";
-		this.loaded = false;
-		this.isModuleHidden = false; // par défaut on affiche le module (si pas de module carousel ou autre pour le cacher)
+		this.isLoaded = false;
+		this.isModuleHidden = false;
 		this.lastUpdate = 0;
 
-		var self = this;
-		this.IntervalID = setInterval(function() { self.updateJeedom(); }, this.config.updateInterval);
-		this.sensors = this.config.sensors;
+		this.IntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 10_000);
+		this.sensors = this.config.sensors || this.defaults.sensors;
 
 		// first update on start
 		this.updateJeedom();
@@ -33,18 +22,18 @@ Module.register("MMM-Jeedom",{
 
 	suspend: function() { //fct core appelée quand le module est caché
 		this.isModuleHidden = true; //Il aurait été plus propre d'utiliser this.hidden, mais comportement aléatoire...
-		console.log("suspend >> ModuleHidden = " + this.isModuleHidden);
+		this.debug("suspend", `isModuleHidden=${this.isModuleHidden}`);
 		this.updateJeedomInterval(); //on appele la fonction qui gere tous les cas
 	},
 
 	resume: function() { //fct core appelée quand le module est affiché
 		this.isModuleHidden = false;
-		console.log("resume >> ModuleHidden = " + this.isModuleHidden);
+		this.debug("resume", `isModuleHidden=${this.isModuleHidden}`);
 		this.updateJeedomInterval();
 	},
 
 	notificationReceived: function(notification, payload, sender) {
-		console.log(`notificationReceived >> ${notification}`);
+		this.debug("notificationReceived", notification);
 		if (notification === "USER_PRESENCE") { // notification envoyée par le module MMM-PIR-Sensor. Voir sa doc
 			this.isUserPresent = payload;
 			this.updateJeedomInterval();
@@ -52,18 +41,17 @@ Module.register("MMM-Jeedom",{
 	},
 
 	updateJeedomInterval: function() {
-		console.log(`updateJeedomInterval >> ${this.isUserPresent} > ${this.isModuleHidden}`);
+		this.debug("updateJeedomInterval", `isUserPresent:${this.isUserPresent} > isModuleHidden:${this.isModuleHidden}`);
 		if (isUserPresent === true && this.isModuleHidden === false) {
-			console.log(`updateJeedomInterval >> ${this.name} est revenu. updateJeedom !`);
+			this.debug("updateJeedomInterval", `${this.name} est revenu. updateJeedom !`);
 
 			// update tout de suite
 			this.updateJeedom();
 			if (this.IntervalID === 0) {
-				var self = this;
-				this.IntervalID = setInterval(function() { self.updateJeedom(); }, this.config.updateInterval);
+				this.IntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || this.defaults.updateInterval);
 			}
-		}else{ //sinon (isUserPresent = false OU ModuleHidden = true)
-			console.log(`updateJeedomInterval >> Personne regarde, on stop l'update ${this.IntervalID}`);
+		} else { //sinon (isUserPresent = false OU ModuleHidden = true)
+			this.debug("updateJeedomInterval", `Personne regarde, on stop l'update ${this.IntervalID}`);
 			clearInterval(this.IntervalID);
 			this.IntervalID = 0;
 		}
@@ -76,60 +64,73 @@ Module.register("MMM-Jeedom",{
 	// Override dom generator.
 	getDom: function() {
 		const wrapper = document.createElement("div");
-		if (!this.loaded) {
+		if (!this.isLoaded) {
 			wrapper.innerHTML = `<div class="dimmed light small">Loading...</div>`;
 			return wrapper;
 		}
 
 		const htmlRows = [];
 		for (const i in this.sensors) {
-			const sensor = this.sensors[i];
+			if (this.sensors.hasOwnProperty(i)) {
+				const sensor = this.sensors[i];
+				const isSensorOn = (sensor._status === 1 || sensor._status === '1');
 
-			let sensorSymbol = sensor.symbolStatic;
-			if (sensor.boolean) {
-				sensorSymbol = sensor.status === 1 ? sensor.symbolOn : sensor.symbolOff;
-			}
+				let sensorSymbol = sensor.icon;
+				if (sensor.iconOn && sensor.iconOff) {
+					sensorSymbol = isSensorOn ? sensor.iconOn : sensor.iconOff;
+				}
 
-			//puis on s'occupe du titre
-			let sensorTitle = sensor.customTitle;
-			if (sensor.boolean && sensor.customTitleOn && sensor.customTitleOff) {
-				sensorTitle = sensor.status == 1 ? sensor.customTitleOn : sensor.customTitleOff;
-			}
+				let sensorTitle = sensor.title;
+				if (sensor.titleOn && sensor.titleOff) {
+					sensorTitle = isSensorOn ? sensor.titleOn : sensor.titleOff;
+				}
 
-			let sensorStatus = '';
-			if (sensor.boolean) {
-				if (sensor.statusOn && sensor.statusOff) {
-					sensorStatus = sensor.status == 1 ? sensor.statusOn : sensor.statusOff;
-					if (sensor.unit) {
-						sensorStatus += ` ${sensor.unit}`;
+				let sensorStatus = '';
+				if (sensor.status?.display) {
+					if (sensor.status.iconOn && sensor.status.iconOff) {
+						sensorStatus = isSensorOn ? sensor.status.iconOn : sensor.status.iconOff;
+					} else {
+						sensorStatus = sensor._status;
+						if (sensor.status.unit) {
+							sensorStatus += ` ${sensor.status.unit}`;
+						}
 					}
 				}
-			} else {
-				sensorStatus = sensor.status;
-				if (sensor.unit) {
-					sensorStatus += ` ${sensor.unit}`;
+
+				let sensorValue = '';
+				if (sensor.value?.display) {
+					sensorStatus = sensor._value;
+					if (sensor.value.unit) {
+						sensorStatus += ` ${sensor.value.unit}`;
+					}
 				}
-			}
 
-			let sensorAction = '';
-			if (sensor.boolean && sensor.cmdIconOn && sensor.cmdIconOff) {
-				sensorAction = sensor.status == 1 ? `<i class="${sensor.cmdIconOn}" data-cmd="${sensor.cmdActionOn}"></i>` : `<i class="${sensor.cmdIconOff}" data-cmd="${sensor.cmdActionOff}"></i>`;
-			}
+				let sensorAction = '';
+				if (sensor.action?.iconOn && sensor.action?.iconOff) {
+					if (isSensorOn) {
+						sensorAction = `<i class="${sensor.action.iconOn}" data-cmd="${sensor.action.cmdIdOn}"></i>`;
+					} else {
+						sensorAction = `<i class="${sensor.action.iconOff}" data-cmd="${sensor.action.cmdIdOff}"></i>`;
+					}
+				}
 
-			htmlRows.push(`
-				<tr class="normal">
-					<td class="symbol align-left"><i class="${sensorSymbol}"></i></td>
-					<td class="title bright align-left">${sensorTitle}</td>
-					<td class="time light align-right">${sensorStatus} ${sensorAction}</td>
-				</tr>
-			`);
+				htmlRows.push(`
+					<tr class="normal">
+						<td class="symbol align-left"><i class="${sensorSymbol}"></i></td>
+						<td class="title bright align-left">${sensorTitle}</td>
+						<td class="time light align-right">${sensorStatus}</td>
+						<td class="time light align-right">${sensorValue}</td>
+						<td class="time light align-right">${sensorAction}</td>
+					</tr>
+				`);
+			}
 		}
 
 		let lastDate = '';
 		if (this.config.displayLastUpdate) {
 			lastDate = `
 				<div class="xsmall light align-left" style="text-align: center; margin-top: 7px;">
-					(${moment.unix(this.lastUpdate).format(this.config.displayLastUpdateFormat)})
+					(${moment.unix(this.lastUpdate).format('dddd - HH:mm:ss')})
 				</div>
 			`;
 		}
@@ -143,7 +144,10 @@ Module.register("MMM-Jeedom",{
 		event.stopPropagation();
 		const dataCmdActionId = event.target.getAttribute('data-cmd');
 		if (dataCmdActionId) {
-			this.askJeedomStatuses([dataCmdActionId], (x) => console.log(x))
+			this.askJeedomStatuses([dataCmdActionId], () => {
+				// sensors may not have been updated yet on Jeedom
+				this.updateJeedom();
+			})
 		}
 	},
 
@@ -152,25 +156,24 @@ Module.register("MMM-Jeedom",{
 
 		this.askJeedomStatuses(this.sensors.map(sensor => sensor.idx), (payload) => {
 			for (const i in this.sensors) {
-				const sensor = this.sensors[i];
-				if (payload[sensor.idx] != null) {
-					sensor.status = payload[sensor.idx];
+				if (this.sensors.hasOwnProperty(i)) {
+					const sensor = this.sensors[i];
+					if (payload[sensor.idx] != null) {
+						sensor._status = payload[sensor.idx];
+					}
+					if (payload[sensor.value?.idx] != null) {
+						sensor._value = payload[sensor.value.idx];
+					}
 				}
 			}
-			this.loaded = true;
-			this.updateDom(this.animationSpeed);
+			this.isLoaded = true;
+			this.updateDom();
 		});
-	},
-
-	roundValue: function(temperature) {
-		const decimals = this.config.roundTemp ? 0 : 1;
-		const roundValue = parseFloat(temperature).toFixed(decimals);
-		return roundValue === "-0" ? 0 : roundValue;
 	},
 
 	doGet: function(url, callback) {
 		const req = new XMLHttpRequest();
-		console.log(`doGet >> ${url}`)
+		this.debug('doGet', url)
 		req.open("GET", url, true);
 		req.timeout = 500;
 		req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -188,5 +191,11 @@ Module.register("MMM-Jeedom",{
 		const schema = this.config.jeedomHTTPS ? "https" : "http";
 		const url = `${schema}://${this.config.jeedomURL}${this.config.jeedomAPIPath}?apikey=${this.config.jeedomAPIKey}&type=cmd&id=${JSON.stringify(ids)}`;
 		this.doGet(url, callback)
+	},
+
+	debug: function (fct, message) {
+		if (this.isDebug === true) {
+			Log.log(`[${this.name}][${fct}] ${message}`);
+		}
 	},
 });
