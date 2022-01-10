@@ -9,7 +9,7 @@ If a PIR-sensor using MMM-PIR-Sensor module is used, this information will not b
 The infos will also not be updated when no instances of the MMM-Jeedom module are displayed on the screen (for example hidden by using MMM-Remote-Control or any carousel like MMM-Pages). This will allow to reduce the number of request to Jeedom API. 
 As soon as one MMM-Jeedom module will be again displayed on the screen, all the instances will request an update of the datas. 
 
-![alt text](https://github.com/nelsou/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom_1.png "Image of MMM-Jeedom v2")
+![alt text](https://github.com/nelsou/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom_v2.png "Image of MMM-Jeedom v2")
 
 ![alt text](https://github.com/nelsou/MMM-Jeedom/blob/master/screenshots/MMM-Jeedom.png "Image of MMM-Jeedom")
 
