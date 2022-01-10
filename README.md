@@ -1,4 +1,4 @@
-# Magic Mirror 2 - JEEDOM Module v2
+# Magic Mirror 2 - JEEDOM Module v2 (with touchscreen support)
 
 This module displays any JEEDOM command value. If you have a touchscreen, you will be able to trigger some command too.
 

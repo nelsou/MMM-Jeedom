@@ -5,7 +5,7 @@ const isUserPresent = true;
 Module.register("MMM-Jeedom", {
 	start: function() {
 		this.debug('start', 'Module is started');
-		this.isDebug = true;
+		this.isDebug = false;
 
 		moment.locale(config.language);
 		this.title = "Loading...";
