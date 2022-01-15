@@ -4,10 +4,10 @@ const isUserPresent = true;
 
 Module.register("MMM-Jeedom", {
 	start: function() {
+		this.isDebug = this.config.debug === true;
 		this.debug('start', 'Module is started');
-		this.isDebug = false;
 
-		moment.locale(config.language);
+		moment.locale(this.config.language);
 		this.title = "Loading...";
 		this.isLoaded = false;
 		this.isModuleHidden = false;
@@ -195,7 +195,7 @@ Module.register("MMM-Jeedom", {
 
 	debug: function (fct, message) {
 		if (this.isDebug === true) {
-			Log.log(`[${this.name}][${fct}] ${message}`);
+			Log.log(`%c[${this.name}]%c[${fct}]%c ${message}`, 'background:#5eba7d;color:white;', 'background:#0a95ff;color:white', 'color:black');
 		}
 	},
 });
