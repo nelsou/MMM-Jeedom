@@ -1,10 +1,8 @@
 'use strict';
 
-const isUserPresent = true;
 Module.register("MMM-Jeedom", {
 	isDebug: null,
 	isLoaded: null,
-	isModuleHidden: null,
 	lastUpdate: null,
 	isTemplateEnable: null,
 	updateJeedomIntervalID: null,
@@ -16,9 +14,8 @@ Module.register("MMM-Jeedom", {
 		moment.locale(this.config.language);
 		this.title = "Loading...";
 		this.isLoaded = false;
-		this.isModuleHidden = false;
 		this.lastUpdate = 0;
-		this.updateJeedomIntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 10_000);
+		this.updateJeedomIntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 5_000);
 
 		this.sendSocketNotification("REGISTER_MODULE_MMM-Jeedom", this.config);
 
@@ -68,31 +65,17 @@ Module.register("MMM-Jeedom", {
 	},
 
 	suspend: function() { //fct core appelée quand le module est caché
-		this.isModuleHidden = true; //Il aurait été plus propre d'utiliser this.hidden, mais comportement aléatoire...
-		this.debug("suspend", `isModuleHidden=${this.isModuleHidden}`);
-		this.updateJeedomInterval(); //on appele la fonction qui gere tous les cas
+		this.debug("updateJeedomInterval", `Personne regarde, on stop les update !`);
+		if (this.updateJeedomIntervalID) {
+			this.updateJeedomIntervalID = clearInterval(this.updateJeedomIntervalID);
+		}
 	},
 
 	resume: function() { //fct core appelée quand le module est affiché
-		this.isModuleHidden = false;
-		this.debug("resume", `isModuleHidden=${this.isModuleHidden}`);
-		this.updateJeedomInterval();
-	},
-
-	updateJeedomInterval: function() {
-		this.debug("updateJeedomInterval", `isUserPresent:${this.isUserPresent} > isModuleHidden:${this.isModuleHidden}`);
-		if (isUserPresent === true && this.isModuleHidden === false) {
-			this.debug("updateJeedomInterval", `${this.name} est revenu !`);
-
-			// update tout de suite
-			this.updateJeedom();
-			if (!this.updateJeedomIntervalID) {
-				this.updateJeedomIntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 10_000);
-			}
-		} else {
-			// (isUserPresent = false OU ModuleHidden = true)
-			this.debug("updateJeedomInterval", `Personne regarde, on stop les update !`);
-			this.IntervalID = clearInterval(this.updateJeedomIntervalID);
+		this.debug("updateJeedomInterval", `${this.name} est revenu !`);
+		this.updateJeedom();
+		if (!this.updateJeedomIntervalID) {
+			this.updateJeedomIntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 5_000);
 		}
 	},
 
@@ -117,7 +100,6 @@ Module.register("MMM-Jeedom", {
 						const sensorId = sensor.ids[j];
 						const valueToMatch = sensorId.statusOnValue !== undefined ? sensorId.statusOnValue : '1';
 						const isSensorOn = sensorId._status == valueToMatch;
-						this.debug(sensorId.name, `${sensorId._status}==${valueToMatch}=${isSensorOn}`)
 
 						let sensorIcon = sensorVisual.icon;
 						if (sensorVisual.iconOn && sensorVisual.iconOff) {
@@ -199,6 +181,10 @@ Module.register("MMM-Jeedom", {
 	},
 
 	updateJeedom: function() {
+		if (this.hidden) {
+			return;
+		}
+
 		this.lastUpdate = Date.now() / 1000 ;
 
 		const ids = [];
@@ -263,7 +249,7 @@ Module.register("MMM-Jeedom", {
 
 	debug: function (fct, message) {
 		if (this.isDebug === true) {
-			Log.log(`%c[${this.name}]%c[${fct}]%c ${message}`, 'background:#5eba7d;color:white;', 'background:#0a95ff;color:white', 'color:black');
+			Log.log(`%c[${this.identifier}]%c[${fct}]%c ${message}`, 'background:#5eba7d;color:white;', 'background:#0a95ff;color:white', 'color:black');
 		}
 	},
 });
