@@ -1,0 +1,7 @@
+{
+	"name": "MMM-Jeedom",
+	"version": "2.0.0",
+	"dependencies": {
+		"node-fetch": "^2.0.0"
+	}
+}

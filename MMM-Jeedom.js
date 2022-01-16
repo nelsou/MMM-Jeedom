@@ -1,8 +1,14 @@
 'use strict';
 
 const isUserPresent = true;
-
 Module.register("MMM-Jeedom", {
+	isDebug: null,
+	isLoaded: null,
+	isModuleHidden: null,
+	lastUpdate: null,
+	isTemplateEnable: null,
+	updateJeedomIntervalID: null,
+
 	start: function() {
 		this.isDebug = this.config.debug === true;
 		this.debug('start', 'Module is started');
@@ -12,11 +18,52 @@ Module.register("MMM-Jeedom", {
 		this.isLoaded = false;
 		this.isModuleHidden = false;
 		this.lastUpdate = 0;
+		this.updateJeedomIntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 10_000);
 
-		this.IntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 10_000);
-		this.sensors = this.config.sensors || this.defaults.sensors;
+		this.sendSocketNotification("REGISTER_MODULE_MMM-Jeedom", this.config);
 
 		// first update on start
+		this.updateJeedom();
+	},
+
+	safeParseInt(str) {
+		if (!str) {
+			return null;
+		}
+		return parseInt(str, 0);
+	},
+
+	socketNotificationReceived: function(notification, payload) {
+		this.debug('socketNotificationReceived', `Received a notification: ${notification}`);
+		if (notification === `JEEDOM_FULL_CONFIG-${this.config.jeedomAPIKey}`) {
+			this.updateSensorWithTemplates(payload);
+		}
+	},
+
+	updateSensorWithTemplates(fullJeedomConfig) {
+		for (const i in this.config.sensors) {
+			if (this.config.sensors.hasOwnProperty(i)) {
+				const sensor = this.config.sensors[i];
+				if (sensor.template) {
+					const jeedomObject = fullJeedomConfig.find(obj => obj.id == sensor.template.objectId);
+					if (jeedomObject) {
+						sensor.ids = jeedomObject.eqLogics
+							.map(eqLogic => {
+								const state = eqLogic.cmds.find(cmd => cmd.name === sensor.template.statusName);
+								return {
+									statusOnValue: state?.display.invertBinary == '1' ? '0' : '1',
+									name: eqLogic.name,
+									id: this.safeParseInt(state?.id),
+									cmdIdOn: this.safeParseInt(eqLogic.cmds.find(cmd => cmd.name === sensor.template.cmdOnName)?.id),
+									cmdIdOff: this.safeParseInt(eqLogic.cmds.find(cmd => cmd.name === sensor.template.cmdOffName)?.id),
+								};
+							})
+							.filter(s => s.name && s.id);
+					}
+				}
+			}
+		}
+		this.updateDom();
 		this.updateJeedom();
 	},
 
@@ -32,36 +79,27 @@ Module.register("MMM-Jeedom", {
 		this.updateJeedomInterval();
 	},
 
-	notificationReceived: function(notification, payload, sender) {
-		this.debug("notificationReceived", notification);
-		if (notification === "USER_PRESENCE") { // notification envoyée par le module MMM-PIR-Sensor. Voir sa doc
-			this.isUserPresent = payload;
-			this.updateJeedomInterval();
-		}
-	},
-
 	updateJeedomInterval: function() {
 		this.debug("updateJeedomInterval", `isUserPresent:${this.isUserPresent} > isModuleHidden:${this.isModuleHidden}`);
 		if (isUserPresent === true && this.isModuleHidden === false) {
-			this.debug("updateJeedomInterval", `${this.name} est revenu. updateJeedom !`);
+			this.debug("updateJeedomInterval", `${this.name} est revenu !`);
 
 			// update tout de suite
 			this.updateJeedom();
-			if (this.IntervalID === 0) {
-				this.IntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || this.defaults.updateInterval);
+			if (!this.updateJeedomIntervalID) {
+				this.updateJeedomIntervalID = setInterval(this.updateJeedom.bind(this), this.config.updateInterval || 10_000);
 			}
-		} else { //sinon (isUserPresent = false OU ModuleHidden = true)
-			this.debug("updateJeedomInterval", `Personne regarde, on stop l'update ${this.IntervalID}`);
-			clearInterval(this.IntervalID);
-			this.IntervalID = 0;
+		} else {
+			// (isUserPresent = false OU ModuleHidden = true)
+			this.debug("updateJeedomInterval", `Personne regarde, on stop les update !`);
+			this.IntervalID = clearInterval(this.updateJeedomIntervalID);
 		}
 	},
 
 	getStyles: function() {
-	    return ['font-awesome.css'];
+	    return ['font-awesome.css', this.file(`./css/MMM-Jeedom.css`)];
 	},
 
-	// Override dom generator.
 	getDom: function() {
 		const wrapper = document.createElement("div");
 		if (!this.isLoaded) {
@@ -70,59 +108,66 @@ Module.register("MMM-Jeedom", {
 		}
 
 		const htmlRows = [];
-		for (const i in this.sensors) {
-			if (this.sensors.hasOwnProperty(i)) {
-				const sensor = this.sensors[i];
-				const isSensorOn = (sensor._status === 1 || sensor._status === '1');
+		for (const i in this.config.sensors) {
+			if (this.config.sensors.hasOwnProperty(i)) {
+				const sensor = this.config.sensors[i];
+				const sensorVisual = sensor.visual;
+				for (const j in sensor.ids) {
+					if (sensor.ids.hasOwnProperty(j)) {
+						const sensorId = sensor.ids[j];
+						const valueToMatch = sensorId.statusOnValue !== undefined ? sensorId.statusOnValue : '1';
+						const isSensorOn = sensorId._status == valueToMatch;
+						this.debug(sensorId.name, `${sensorId._status}==${valueToMatch}=${isSensorOn}`)
 
-				let sensorSymbol = sensor.icon;
-				if (sensor.iconOn && sensor.iconOff) {
-					sensorSymbol = isSensorOn ? sensor.iconOn : sensor.iconOff;
-				}
-
-				let sensorTitle = sensor.title;
-				if (sensor.titleOn && sensor.titleOff) {
-					sensorTitle = isSensorOn ? sensor.titleOn : sensor.titleOff;
-				}
-
-				let sensorStatus = '';
-				if (sensor.status?.display) {
-					if (sensor.status.iconOn && sensor.status.iconOff) {
-						sensorStatus = isSensorOn ? sensor.status.iconOn : sensor.status.iconOff;
-					} else {
-						sensorStatus = sensor._status;
-						if (sensor.status.unit) {
-							sensorStatus += ` ${sensor.status.unit}`;
+						let sensorIcon = sensorVisual.icon;
+						if (sensorVisual.iconOn && sensorVisual.iconOff) {
+							if (sensorId._status !== undefined) {
+								sensorIcon = isSensorOn ? sensorVisual.iconOn : sensorVisual.iconOff;
+							} else {
+								sensorIcon = 'fas fa-circle-notch rotate';
+							}
 						}
+
+						let sensorName = sensorId.name;
+						if (sensorId.nameOn && sensorId.nameOff) {
+							sensorName = isSensorOn ? sensorId.nameOn : sensorId.nameOff;
+						}
+
+						let sensorStatus = '';
+						if (!sensorVisual.hideStatus) {
+							sensorStatus = sensorId._status;
+							if (sensorVisual.unit) {
+								sensorStatus += ` ${sensorVisual.unit}`;
+							}
+						}
+
+						let sensorValue = '';
+						if (sensorId.valueId) {
+							sensorValue = sensorId._value;
+							if (sensorVisual.valueUnit) {
+								sensorValue += ` ${sensorVisual.valueUnit}`;
+							}
+						}
+
+						let sensorAction = '';
+						if (sensorId.cmdIdOn && sensorId.cmdIdOff) {
+							if (isSensorOn) {
+								sensorAction = `<i class="${sensorVisual.cmdIconOn}" data-cmd="${sensorId.cmdIdOn}"></i>`;
+							} else {
+								sensorAction = `<i class="${sensorVisual.cmdIconOff}" data-cmd="${sensorId.cmdIdOff}"></i>`;
+							}
+						}
+
+						htmlRows.push(`
+						<tr class="normal">
+							<td class="symbol align-left"><i class="${sensorIcon}"></i></td>
+							<td class="title bright align-left">${sensorName}</td>
+							<td class="time light align-right">${sensorStatus} ${sensorValue}</td>
+							<td class="time light align-right">${sensorAction}</td>
+						</tr>
+					`);
 					}
 				}
-
-				let sensorValue = '';
-				if (sensor.value?.display) {
-					sensorStatus = sensor._value;
-					if (sensor.value.unit) {
-						sensorStatus += ` ${sensor.value.unit}`;
-					}
-				}
-
-				let sensorAction = '';
-				if (sensor.action?.iconOn && sensor.action?.iconOff) {
-					if (isSensorOn) {
-						sensorAction = `<i class="${sensor.action.iconOn}" data-cmd="${sensor.action.cmdIdOn}"></i>`;
-					} else {
-						sensorAction = `<i class="${sensor.action.iconOff}" data-cmd="${sensor.action.cmdIdOff}"></i>`;
-					}
-				}
-
-				htmlRows.push(`
-					<tr class="normal">
-						<td class="symbol align-left"><i class="${sensorSymbol}"></i></td>
-						<td class="title bright align-left">${sensorTitle}</td>
-						<td class="time light align-right">${sensorStatus}</td>
-						<td class="time light align-right">${sensorValue}</td>
-						<td class="time light align-right">${sensorAction}</td>
-					</tr>
-				`);
 			}
 		}
 
@@ -135,7 +180,7 @@ Module.register("MMM-Jeedom", {
 			`;
 		}
 
-		wrapper.innerHTML = `<table class="small">${htmlRows.join('')}</table>${lastDate}`;
+		wrapper.innerHTML = `<table class="small" style="min-width: 400px;">${htmlRows.join('')}</table>${lastDate}`;
 		wrapper.addEventListener("click", this.onClick.bind(this));
 		return wrapper;
 	},
@@ -144,9 +189,11 @@ Module.register("MMM-Jeedom", {
 		event.stopPropagation();
 		const dataCmdActionId = event.target.getAttribute('data-cmd');
 		if (dataCmdActionId) {
-			this.askJeedomStatuses([dataCmdActionId], () => {
+			event.target.parentNode.parentNode.className = 'loading';
+			event.target.className = 'fas fa-circle-notch rotate';
+			this.askJeedomStatuses([this.safeParseInt(dataCmdActionId)], () => {
 				// sensors may not have been updated yet on Jeedom
-				this.updateJeedom();
+				// this.updateJeedom();
 			})
 		}
 	},
@@ -154,15 +201,32 @@ Module.register("MMM-Jeedom", {
 	updateJeedom: function() {
 		this.lastUpdate = Date.now() / 1000 ;
 
-		this.askJeedomStatuses(this.sensors.map(sensor => sensor.idx), (payload) => {
-			for (const i in this.sensors) {
-				if (this.sensors.hasOwnProperty(i)) {
-					const sensor = this.sensors[i];
-					if (payload[sensor.idx] != null) {
-						sensor._status = payload[sensor.idx];
+		const ids = [];
+		for (const i in this.config.sensors) {
+			if (this.config.sensors.hasOwnProperty(i)) {
+				const sensor = this.config.sensors[i];
+				for (const j in sensor.ids) {
+					if (sensor.ids.hasOwnProperty(j)) {
+						const sensorId = sensor.ids[j];
+						ids.push(sensorId.id);
+						if (sensorId.valueId) {
+							ids.push(sensorId.valueId);
+						}
 					}
-					if (payload[sensor.value?.idx] != null) {
-						sensor._value = payload[sensor.value.idx];
+				}
+			}
+		}
+
+		this.askJeedomStatuses(ids, (payload) => {
+			for (const i in this.config.sensors) {
+				if (this.config.sensors.hasOwnProperty(i)) {
+					const sensor = this.config.sensors[i];
+					for (const j in sensor.ids) {
+						if (sensor.ids.hasOwnProperty(j)) {
+							const sensorId = sensor.ids[j];
+							sensorId._status = payload[sensorId.id];
+							sensorId._value = payload[sensorId.valueId];
+						}
 					}
 				}
 			}
@@ -171,15 +235,18 @@ Module.register("MMM-Jeedom", {
 		});
 	},
 
-	doGet: function(url, callback) {
+	doGet: function(url, callback, nbRetryLeft = 3) {
+		this.debug('doGet', url);
 		const req = new XMLHttpRequest();
-		this.debug('doGet', url)
 		req.open("GET", url, true);
 		req.timeout = 500;
 		req.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-		req.onreadystatechange = function() {
-			if (req.readyState === 4 && req.status === 200) {
-				if (callback) {
+		req.onreadystatechange = () => {
+			if (req.readyState === 4) {
+				if (req.status === 0 && nbRetryLeft > 0) {
+					// request may fail because of Jeedom load. Retry 3 times
+					this.doGet(url, callback, nbRetryLeft - 1);
+				} else if (req.status === 200 && callback) {
 					callback(JSON.parse(req.responseText));
 				}
 			}
@@ -188,8 +255,9 @@ Module.register("MMM-Jeedom", {
 	},
 
 	askJeedomStatuses: function(ids, callback) {
-		const schema = this.config.jeedomHTTPS ? "https" : "http";
-		const url = `${schema}://${this.config.jeedomURL}${this.config.jeedomAPIPath}?apikey=${this.config.jeedomAPIKey}&type=cmd&id=${JSON.stringify(ids)}`;
+		const schema = this.config.jeedomHttps ? "https" : "http";
+		const port = this.config.jeedomPort ? this.config.jeedomPort : 443;
+		const url = `${schema}://${this.config.jeedomUrl}:${port}/core/api/jeeApi.php?apikey=${this.config.jeedomAPIKey}&type=cmd&id=${JSON.stringify(ids)}&_=${+new Date()}`;
 		this.doGet(url, callback)
 	},
 

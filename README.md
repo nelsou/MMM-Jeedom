@@ -22,12 +22,18 @@ As soon as one MMM-Jeedom module will be again displayed on the screen, all the 
 Git clone this repo into ~/MagicMirror/modules directory :
 ```
 cd ~/MagicMirror/modules
-git clone https://github.com/prysme01/MMM-Jeedom.git
+git clone https://github.com/nelsou/MMM-Jeedom.git
 ```
 and add the configuration section in your Magic Mirror config file : 
 
 ## Module configuration
 (1st example of the screenshot) :
+
+
+|Icon|Name|Status|Value|Command|
+|---|---|---|---|---|
+|icon or iconOn&iconOff|name or nameOn&nameOff|status unit|value valueUnit|cmdIconOn&cmdIconOff|
+
 ````javascript
 modules: [
 {
@@ -37,9 +43,9 @@ modules: [
   config: {
     updateInterval: 3000,
     jeedomAPIKey: "", 
-    jeedomURL: "192.168.0.1 or hostname",
-    jeedomPORT: 443,
-    jeedomHTTPS: true,
+    jeedomUrl: "192.168.0.1 or hostname",
+    jeedomPort: 443,
+    jeedomHttps: true,
     jeedomAPIPath: "/core/api/jeeApi.php",
     sensors: [
       {
@@ -134,20 +140,20 @@ The following properties can be configured:
 			</td>
 		</tr>
 		<tr>
-			<td><code>jeedomURL</code></td>
+			<td><code>jeedomUrl</code></td>
 			<td>local or externe URL<br>
 				<br><b>Possible values:</b> <code>192.168.1.18</code>
 			</td>
 		</tr>
 		<tr>
-			<td><code>jeedomPORT</code></td>
+			<td><code>jeedomPort</code></td>
 			<td>443 or 80<br>
 				<br><b>Possible values:</b> <code>443 or 80</code>
 				<br><b>Default value:</b> <code>443</code>
 			</td>
 		</tr>
 		<tr>
-			<td><code>jeedomHTTPS</code></td>
+			<td><code>jeedomHttps</code></td>
 			<td>HTTPS or HTTP<br>
 				<br><b>Possible values:</b> <code>boolean</code>
 				<br><b>Default value:</b> <code>true</code>
