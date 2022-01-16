@@ -116,7 +116,7 @@ Module.register("MMM-Jeedom", {
 						}
 
 						let sensorStatus = '';
-						if (!sensorVisual.hideStatus) {
+						if (sensorId.id && !sensorVisual.hideStatus) {
 							sensorStatus = sensorId._status;
 							if (sensorVisual.unit) {
 								sensorStatus += ` ${sensorVisual.unit}`;
@@ -194,7 +194,9 @@ Module.register("MMM-Jeedom", {
 				for (const j in sensor.ids) {
 					if (sensor.ids.hasOwnProperty(j)) {
 						const sensorId = sensor.ids[j];
-						ids.push(sensorId.id);
+						if (sensorId.id) {
+							ids.push(sensorId.id);
+						}
 						if (sensorId.valueId) {
 							ids.push(sensorId.valueId);
 						}
